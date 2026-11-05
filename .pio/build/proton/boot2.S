@@ -1,4 +1,4 @@
-// Padded and checksummed version of: C:\Users\cdvet\Documents\Purdue\ECE\ECE_362\ece362-fa26-lab7-cvetro\.pio\build\proton\boot2.bin
+// Padded and checksummed version of: C:\Users\cdvet\Documents\Purdue\ECE\ECE_362\final-project\.pio\build\proton\boot2.bin
 
 .cpu cortex-m0plus
 .thumb
