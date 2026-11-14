@@ -67,3 +67,36 @@ void divBN(BigNumber a, BigNumber b, BigNumber* c) {
 
     normalizeBN(c);
 }
+
+// returns - if a < b, 0 if a = b, + if a > b
+int compBN(BigNumber a, BigNumber b) {
+
+    normalizeBN(&a);
+    normalizeBN(&b);
+
+    if (a.exponent > b.exponent)
+        return 1;
+    else if (b.exponent > a.exponent)
+        return -1;
+    else
+        return a.mantissa - b.mantissa;
+}
+
+// a ^ b, where a is a double and b is an int
+// generally, just going to be used for cost scaling, so nothing fancy
+void powToBN(double a, int b, BigNumber* c) {
+
+    *c = (BigNumber){1,0};
+    // blocks of 100 will be sufficient for this
+    do
+    {
+        // if b is greater than 100, use 100 (first few loops, only when you've purchased > 100 buildings)
+        // if not, use b (last loop)
+        int b2 = (b > 100) ? 100 : b;
+
+        BigNumber d = {pow(a, b2), 0};
+
+        b -= 100;
+        multBN(d, *c, c);
+    } while(b > 0);
+}

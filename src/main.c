@@ -63,7 +63,7 @@ char building_names[NUM_BUILDINGS][16] = {
 BigNumber* bonusCPS = NULL; // extra CPS for cross-upgrades? (may not use?)
 BigNumber totalCPS = {0,0}; // total CPS (may not use?)
 
-BigNumber* cost = NULL; // technically just directly related to number of each gen purchased
+BigNumber baseCost[NUM_BUILDINGS]; // base price of each building, to be scaled
 
 int selX = 0; // -1 if left, 0 if center, 1 if right (used for selections)
 int selY = 0; // -1 if down, 0 if center, 1 if up (used for selections)
@@ -86,10 +86,26 @@ void init_arrays() {
     baseCPS[IDX_FARM] = (BigNumber){8,0};
     baseCPS[IDX_MINE] = (BigNumber){17,0};
 
+    baseCost[IDX_CLICKER] = (BigNumber){15,0};
+    baseCost[IDX_GRANDMA] = (BigNumber){100,0};
+    baseCost[IDX_FARM] = (BigNumber){1100,0};
+    baseCost[IDX_MINE] = (BigNumber){12000,0};
+    
 }
 
 void purchase_building() {
     
+    BigNumber scaling;
+    // scaling is set to multiplicative value of 1.15 ^ nUpgrades
+    powToBN(1.15, num[indY], &scaling);
+    // scaling is set to the scaling value (1.15 ^ n) times base cost
+    multBN(scaling, baseCost[indY], &scaling);
+
+    if (compBN(cookies, scaling) >= 0)
+    {
+        num[indY] += 1;
+        subBN(cookies, scaling, &cookies);
+    }
 }
 
 void isr_joystick_check() {
@@ -245,6 +261,7 @@ void isr_cookie_update() {
 void updateCPS() {
 
     BigNumber temp;
+    totalCPS = (BigNumber){0,0};
 
     for (int i = 0; i < NUM_BUILDINGS; i++)
     {
@@ -253,7 +270,7 @@ void updateCPS() {
             multBN((BigNumber){num[i],0}, baseCPS[i], &temp);
             addBN(temp, xtraCPS[i], &temp);
             divBN(temp, (BigNumber){UPDATE_HZ,0}, &temp);
-            addBN(temp, totalCPS, &totalCPS);
+            addBN(totalCPS, temp, &totalCPS);
         }
     }
 }
@@ -297,9 +314,16 @@ void init_buttonirq() {
 // mostly for consolidated testing, generally nothing back comes of simply printing to the console it's fine
 void print_display() {
     printf("%d\n", (int)cookies.mantissa);
-    printf("CPS: %.2f\n", totalCPS.mantissa * UPDATE_HZ);
-    printf("Option (x,y): %d, %d\n", indX, indY);
+    printf("CPS: %.1f\n", totalCPS.mantissa * UPDATE_HZ);
+    // printf("Option (x,y): %d, %d\n", indX, indY);
+    BigNumber scaling;
+    // scaling is set to multiplicative value of 1.15 ^ nUpgrades
+    powToBN(1.15, num[indY], &scaling);
+    // scaling is set to the scaling value (1.15 ^ n) times base cost
+    multBN(scaling, baseCost[indY], &scaling);
+    printf("Cost: %.0f E %d\n", scaling.mantissa, scaling.exponent);
     printf("Selection: %s\n", building_names[indY]);
+    printf("Num: %d %d %d %d\n", num[0], num[1], num[2], num[3]);
 }
 
 int main () {
@@ -329,8 +353,9 @@ int main () {
         // update display
     for (;;)
     {
+        updateCPS();
         print_display();
         // cookies++;
-        sleep_ms(1000);
+        sleep_ms(250);
     }
 }

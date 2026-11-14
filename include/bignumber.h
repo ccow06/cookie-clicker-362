@@ -11,6 +11,8 @@ void addBN(BigNumber a, BigNumber b, BigNumber* c);
 void subBN(BigNumber a, BigNumber b, BigNumber* c);
 void multBN(BigNumber a, BigNumber b, BigNumber* c);
 void divBN(BigNumber a, BigNumber b, BigNumber* c);
+int compBN(BigNumber a, BigNumber b);
+void powToBN(double a, int b, BigNumber* c);
 
 
 #endif
