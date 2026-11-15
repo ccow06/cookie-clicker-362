@@ -32,7 +32,7 @@
 #define JOYSTICK_BUFF 300
 
 // index_X_max: how many horizontal selections (i.e. slots for buy, buy10, sell, etc.) are there total
-#define INDX_MAX 2
+#define INDX_MAX 1
 // index_Y_max: how many vertical selections (i.e. buildings, cookie, upgrade, etc.) are there total
 #define INDY_MAX NUM_BUILDINGS-1
 
@@ -50,8 +50,8 @@
 
 
 // bro I gotta make them BIG NUMBERS
-BigNumber cookies = {0,0}; // total num of cookies in "bank" idk **
-BigNumber cookieQ = {0,0}; // cookie Queue, hahaha how clever
+BigNumber cookies = {0,1}; // total num of cookies in "bank" idk **
+BigNumber cookieQ = {0,1}; // cookie Queue, hahaha how clever
 int num[NUM_BUILDINGS]; // number of each cookie generator purchased **
 BigNumber baseCPS[NUM_BUILDINGS]; // num of cookies each cookie gen generates (per second)
 BigNumber xtraCPS[NUM_BUILDINGS]; // extra CPS (from upgrades)
@@ -69,9 +69,10 @@ char building_names[NUM_BUILDINGS][16] = {
 };
 
 BigNumber* bonusCPS = NULL; // extra CPS for cross-upgrades? (may not use?)
-BigNumber totalCPS = {0,0}; // total CPS (may not use?)
+BigNumber totalCPS = {0,0}  ; // total CPS (may not use?)
 
 BigNumber baseCost[NUM_BUILDINGS]; // base price of each building, to be scaled
+BigNumber upgCost[NUM_BUILDINGS]; // base price of each upgrade, to be scaled
 
 int selX = 0; // -1 if left, 0 if center, 1 if right (used for selections)
 int selY = 0; // -1 if down, 0 if center, 1 if up (used for selections)
@@ -83,12 +84,15 @@ void init_arrays() {
     // num = calloc(NUM_BUILDINGS, sizeof(*num));
     // baseCPS = calloc(NUM_BUILDINGS, sizeof(*baseCPS));
     // xtraCPS = calloc(NUM_BUILDINGS, sizeof(*xtraCPS));
-    
+    // cookieQ = (BigNumber){2,6}; // test
+
     for (int i = 0; i < NUM_BUILDINGS; i++)
     {
         num[i] = START_Q;
         xtraCPS[i] = (BigNumber){0,0};
+        numUpg[i] = 0;
     }
+    // numUpg[0] = 10; // for testing
     baseCPS[IDX_CLICKER] = (BigNumber){0.1,0};
     baseCPS[IDX_GRANDMA] = (BigNumber){1,0};
     baseCPS[IDX_FARM] = (BigNumber){8,0};
@@ -99,6 +103,22 @@ void init_arrays() {
     baseCost[IDX_FARM] = (BigNumber){1100,0};
     baseCost[IDX_MINE] = (BigNumber){12000,0};
     
+    for (int i = 0; i < NUM_BUILDINGS; i++)
+    {
+        upgCost[i] = (BigNumber){1, (2*i)+3};
+    }
+}
+
+void purchase_upgrade() {
+    BigNumber scaling;
+
+    multBN(upgCost[indY], (BigNumber){1,numUpg[indY]*2}, &scaling);
+
+    if (compBN(cookies, scaling) >= 0)
+    {
+        numUpg[indY]++;
+        subBN(cookies, scaling, &cookies);
+    }
 }
 
 void purchase_building() {
@@ -196,7 +216,10 @@ void isr_joystick_check() {
         {
             selS = 0;
             printf("Released!\n");
-            purchase_building();
+            if (indX == 0)
+                purchase_building();
+            if (indX == 1)
+                purchase_upgrade();
         }
     }
     else
@@ -258,7 +281,7 @@ void isr_cookie_update() {
     // gpio_acknowledge_irq(COOKIE_BUTTON_GPIO, BUTTON_INTERRUPT_TYPE)
 
     addBN(totalCPS, cookieQ, &cookieQ);
-    addBN(cookieQ, cookies, &cookies);
+    addBN(cookies, cookieQ, &cookies);
     
     cookieQ = (BigNumber){0,0};
     // printf("cookie!\n");
@@ -269,6 +292,7 @@ void isr_cookie_update() {
 void updateCPS() {
 
     BigNumber temp;
+    BigNumber temp2;
     totalCPS = (BigNumber){0,0};
 
     for (int i = 0; i < NUM_BUILDINGS; i++)
@@ -276,7 +300,8 @@ void updateCPS() {
         if (num[i])
         {
             multBN((BigNumber){num[i],0}, baseCPS[i], &temp);
-            
+            powToBN(2, numUpg[indY], &temp2);
+            multBN(temp, temp2, &temp);
             addBN(temp, xtraCPS[i], &temp);
             divBN(temp, (BigNumber){UPDATE_HZ,0}, &temp);
             addBN(totalCPS, temp, &totalCPS);
@@ -299,7 +324,13 @@ void init_timer_irq() {
 void isr_button_click() {
     gpio_acknowledge_irq(COOKIE_BUTTON_GPIO, BUTTON_INTERRUPT_TYPE);
     // gpio_acknowledge_irq(JOYSTICK_SEL_GPIO, BUTTON_INTERRUPT_TYPE);
-    cookies.mantissa++;
+    BigNumber temp;
+    BigNumber temp2;
+
+    powToBN(2.0,numUpg[IDX_CLICKER],&temp2);
+    multBN((BigNumber){clickUpg[numClickUpg], 0}, totalCPS, &temp);
+    addBN(temp, temp2, &temp);
+    addBN(cookieQ, temp, &cookieQ);
 }
 
 void init_buttonirq() {
@@ -322,16 +353,27 @@ void init_buttonirq() {
 
 // mostly for consolidated testing, generally nothing back comes of simply printing to the console it's fine
 void print_display() {
-    printf("%d\n", (int)cookies.mantissa);
+    printf("%.2f E %d\n", cookies.mantissa, cookies.exponent);
     printf("CPS: %.1f\n", totalCPS.mantissa * UPDATE_HZ);
-    // printf("Option (x,y): %d, %d\n", indX, indY);
+    printf("Option (x,y): %d, %d\n", indX, indY);
     BigNumber scaling;
-    // scaling is set to multiplicative value of 1.15 ^ nUpgrades
-    powToBN(1.15, num[indY], &scaling);
-    // scaling is set to the scaling value (1.15 ^ n) times base cost
-    multBN(scaling, baseCost[indY], &scaling);
-    printf("Cost: %.0f E %d\n", scaling.mantissa, scaling.exponent);
+
+    if (indX == 0)
+    {
+        // scaling is set to multiplicative value of 1.15 ^ nUpgrades
+        powToBN(1.15, num[indY], &scaling);
+        // scaling is set to the scaling value (1.15 ^ n) times base cost
+        multBN(scaling, baseCost[indY], &scaling);
+        printf("Cost: %.2f E %d\n", scaling.mantissa, scaling.exponent);
+    }
+    else if (indX == 1)
+    {
+        multBN(upgCost[indY], (BigNumber){1,numUpg[indY]*2}, &scaling);
+        printf("Cost: %.2f E %d\n", scaling.mantissa, scaling.exponent);
+        printf("Upgrade ");
+    }
     printf("Selection: %s\n", building_names[indY]);
+    
     printf("Num: %d %d %d %d\n", num[0], num[1], num[2], num[3]);
 }
 
@@ -362,10 +404,11 @@ int main () {
         // update display
     for (;;)
     {
+        cookies = (BigNumber){20,8};
         updateCPS();
         print_display();
         // printf("%d\n", sizeof(BigNumber));
         // cookies++;
-        sleep_ms(250);
+        sleep_ms(2000);
     }
 }

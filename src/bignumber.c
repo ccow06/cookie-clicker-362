@@ -6,9 +6,9 @@
 // i.e., keep the mantissa to 1-3 digits before the decimal,
 //       keep the exponent to a factor of 3 (but 6 at lowest)
 void normalizeBN(BigNumber* a) {
-
-    int man = (int)(a->mantissa) * pow(10, a->exponent);
-    int digs = 0;
+ 
+    int man = (int)(a->mantissa);
+    int digs = a->exponent;
 
     while (man != 0)
     {
@@ -23,7 +23,7 @@ void normalizeBN(BigNumber* a) {
     digs = (digs - 1) / 3 * 3; // if 7 digits, goes to 6. if 9 digits, goes to 6. if 10 digits, goes to 9.
     // basically, keeps exponent value to multiple of 3, next lowest if alr a multiple of 3
 
-    a->mantissa = a->mantissa / (pow(10, digs));
+    a->mantissa = a->mantissa / (pow(10, digs-a->exponent));
     a->exponent = digs;
 }
 
@@ -69,17 +69,28 @@ void divBN(BigNumber a, BigNumber b, BigNumber* c) {
 }
 
 // returns - if a < b, 0 if a = b, + if a > b
-int compBN(BigNumber a, BigNumber b) {
+double compBN(BigNumber a, BigNumber b) {
 
     normalizeBN(&a);
     normalizeBN(&b);
 
+    // printf("%f %d  -  %f %d\n",a.mantissa,a.exponent,b.mantissa,b.exponent);
+
     if (a.exponent > b.exponent)
+    {
+        // printf("MORE\n");
         return 1;
+    }
     else if (b.exponent > a.exponent)
-        return -1;
+    {
+        // printf("LESS\n");
+        return -1; 
+    }
     else
-        return a.mantissa - b.mantissa;
+    {
+        // printf("IDK\n");
+        return a.mantissa - b.mantissa; 
+    }
 }
 
 // a ^ b, where a is a double and b is an int
