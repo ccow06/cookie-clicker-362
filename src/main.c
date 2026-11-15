@@ -43,16 +43,24 @@
 #define IDX_MINE 3
 // cont for each gen ...
 
+#define NUM_CLICK_UPG 6
+
 // for testing
 #define START_Q 0
 
 
 // bro I gotta make them BIG NUMBERS
-BigNumber cookies = {0,0}; // total num of cookies in "bank" idk
+BigNumber cookies = {0,0}; // total num of cookies in "bank" idk **
 BigNumber cookieQ = {0,0}; // cookie Queue, hahaha how clever
-int num[NUM_BUILDINGS]; // number of each cookie generator purchased
+int num[NUM_BUILDINGS]; // number of each cookie generator purchased **
 BigNumber baseCPS[NUM_BUILDINGS]; // num of cookies each cookie gen generates (per second)
 BigNumber xtraCPS[NUM_BUILDINGS]; // extra CPS (from upgrades)
+int numUpg[NUM_BUILDINGS]; // **
+// double crossUpg[NUM_BUILDINGS]; // probably just grandmas
+int numClickUpg = 0; // **
+double clickUpg[NUM_CLICK_UPG] = {1.00, 1.01, 1.02, 1.05, 1.10, 1.15}; // click upgrades, for interfacing with numClickUpg
+
+
 char building_names[NUM_BUILDINGS][16] = {
     "Clicker",
     "Grandma",
@@ -268,6 +276,7 @@ void updateCPS() {
         if (num[i])
         {
             multBN((BigNumber){num[i],0}, baseCPS[i], &temp);
+            
             addBN(temp, xtraCPS[i], &temp);
             divBN(temp, (BigNumber){UPDATE_HZ,0}, &temp);
             addBN(totalCPS, temp, &totalCPS);
@@ -355,6 +364,7 @@ int main () {
     {
         updateCPS();
         print_display();
+        // printf("%d\n", sizeof(BigNumber));
         // cookies++;
         sleep_ms(250);
     }
