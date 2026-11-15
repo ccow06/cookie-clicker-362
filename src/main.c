@@ -404,7 +404,7 @@ int main () {
         // update display
     for (;;)
     {
-        cookies = (BigNumber){20,8};
+        // cookies = (BigNumber){20,8};
         updateCPS();
         print_display();
         // printf("%d\n", sizeof(BigNumber));
